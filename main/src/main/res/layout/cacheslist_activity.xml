@@ -1,13 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_content"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
-    android:orientation="vertical"
-    android:id="@+id/activity_content"
-    tools:context=".CacheListActivity" >
+    android:orientation="horizontal"
+    tools:context=".CacheListActivity">
 
     <include layout="@layout/filter_sort_bar" />
+
+    <!-- Waiting for location UI -->
+    <LinearLayout
+        android:id="@+id/waitingContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/waitingSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true" />
+
+        <TextView
+            android:id="@+id/waitingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Waiting for location…" />
+    </LinearLayout>
 
     <RelativeLayout
         android:id="@+id/loading"
@@ -29,13 +53,13 @@
         android:layout_height="fill_parent"
         android:layout_margin="0dip"
         android:clipToPadding="false"
-        android:dividerHeight="1dip"
         android:divider="@color/colorSeparator"
+        android:dividerHeight="1dip"
         android:fastScrollEnabled="false"
         android:padding="0dip"
         android:scrollbarStyle="outsideOverlay"
         android:visibility="gone"
         tools:listitem="@layout/cacheslist_item"
-        tools:visibility="visible"/>
+        tools:visibility="visible" />
 
 </LinearLayout>

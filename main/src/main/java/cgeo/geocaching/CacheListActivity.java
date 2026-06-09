@@ -117,6 +117,7 @@ import android.view.View;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -175,6 +176,11 @@ public class CacheListActivity extends AbstractListActivity implements FilteredA
     private SearchResult search = null;
     private boolean checkForEmtpyList = true;
 
+    // variable for waiting for loading location
+    private boolean pendingNearby = false;
+    private boolean waitingForAccurateFix = false;
+
+
     private final CacheListActionBarChooser actionBarChooser =
         new CacheListActionBarChooser(this, this::getSupportActionBar, this::switchListById);
     private CacheListAdapter adapter = null;
@@ -206,7 +212,21 @@ public class CacheListActivity extends AbstractListActivity implements FilteredA
 
         @Override
         public void updateGeoData(final GeoData geoData) {
+            Log.d("CacheListupdateGeoData called acc=" + geoData.getAccuracy()
+                    + " coords=" + geoData.getCoords()
+                    + " pendingNearby=" + pendingNearby
+                    + " waiting=" + waitingForAccurateFix);
+
             adapter.setActualCoordinates(geoData.getCoords());
+
+            // Start real loader once we have accurate GPS
+            if (waitingForAccurateFix && pendingNearby) {
+                if (geoData.getAccuracy() < 50) {
+                    waitingForAccurateFix = false;
+                    pendingNearby = false;
+                    startNearbyLoader(geoData.getCoords());
+                }
+            }
         }
     };
 
@@ -418,7 +438,11 @@ public class CacheListActivity extends AbstractListActivity implements FilteredA
         FilterUtils.initializeFilterBar(findViewById(R.id.filter_bar), this);
         updateFilterBar();
 
-        restartCacheLoader(false, null);
+        // Do NOT start loader yet for NEAREST – wait for GPS fix
+        if (type != CacheListType.NEAREST) {
+            restartCacheLoader(false, null);
+        }
+
         refreshListFooter();
 
         if (isInvokedFromAttachment()) {
@@ -507,7 +531,15 @@ public class CacheListActivity extends AbstractListActivity implements FilteredA
 
     @Override
     public void onResume() {
+
+        Log.d("CacheListonResume: before geoDirHandler.start()");
         super.onResume();
+
+        // if waiting for location
+        if (pendingNearby) {
+            showWaitingUi();
+        }
+
 
         // save current position
         final LastPositionHelper lastPosition = new LastPositionHelper(this);
@@ -1824,7 +1856,11 @@ public class CacheListActivity extends AbstractListActivity implements FilteredA
                 case NEAREST:
                     title = LocalizationUtils.getString(R.string.caches_nearby);
                     markerId = EmojiUtils.NO_EMOJI;
-                    loader = new CoordsGeocacheListLoader(this, sortContext.getSort(), coords, true);
+                    // waiting for location
+                    pendingNearby = true;
+                    waitingForAccurateFix = true;
+                    // Dummy loader – must never return null
+                    loader = new NullGeocacheListLoader(this, new SearchResult());
                     break;
                 case COORDINATE:
                     title = coords.toString();
@@ -2050,4 +2086,41 @@ public class CacheListActivity extends AbstractListActivity implements FilteredA
 
         return true;
     }
+
+
+    private void startNearbyLoader(final Geopoint coords) {
+                hideWaitingUi();
+                this.coords = coords;
+                currentLoader = new CoordsGeocacheListLoader(
+                        this,
+                        sortContext.getSort(),
+                        coords,
+                        true);
+        runOnUiThread(() -> Toast.makeText(this, "startNearbyLoader called", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> restartCacheLoader(true, null));
+            }
+
+    private void showWaitingUi() {
+        View waiting = findViewById(R.id.waitingContainer);
+        if (waiting != null) {
+            waiting.setVisibility(View.VISIBLE);
+        }
+        ListView list = findViewById(android.R.id.list);
+        if (list != null) {
+            list.setVisibility(View.GONE);
+        }
+    }
+
+
+    private void hideWaitingUi() {
+        View waiting = findViewById(R.id.waitingContainer);
+        if (waiting != null) {
+            waiting.setVisibility(View.GONE);
+        }
+        ListView list = findViewById(android.R.id.list);
+        if (list != null) {
+            list.setVisibility(View.VISIBLE);
+        }
+    }
+
 }
